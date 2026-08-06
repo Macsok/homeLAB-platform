@@ -1,10 +1,15 @@
-resource "proxmox_virtual_environment_download_file" "ubuntu_noble" {
+resource "proxmox_download_file" "ubuntu_noble" {
     content_type = "import"
     datastore_id = var.image_datastore
     node_name = var.proxmox_node
 
     url = "https://cloud-images.ubuntu.com/noble/current/noble-server-cloudimg-amd64.img"
     file_name = "noble-server-cloudimg-amd64.qcow2"
+
+    # Optional: Set a timeout for the download operation (in seconds)
+    upload_timeout = 3600
+    # Optional: Overwrite the file if it already exists in the datastore
+    overwrite_unmanaged = true
 }
 
 resource "proxmox_virtual_environment_vm" "test_vm" {
@@ -28,7 +33,7 @@ resource "proxmox_virtual_environment_vm" "test_vm" {
 
     disk {
         datastore_id = var.vm_datastore
-        import_from = proxmox_virtual_environment_download_file.ubuntu_noble.id
+        import_from = proxmox_download_file.ubuntu_noble.id
 
         interface = "virtio0"
         size = 20

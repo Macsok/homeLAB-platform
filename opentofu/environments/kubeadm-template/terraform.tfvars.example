@@ -1,0 +1,18 @@
+# Copy this file to terraform.tfvars and adjust the values before creating a plan.
+
+# Proxmox API connection
+proxmox_endpoint = "https://192.168.100.25:8006/"
+proxmox_insecure = true
+proxmox_node = "hades-node"
+
+# Proxmox storage and networking
+image_datastore = "local"
+vm_datastore = "local-lvm"
+network_bridge = "vnet1"
+
+# Ubuntu Noble template
+template_vm_id = 9000
+template_name = "ubuntu-noble-cloud-template"
+template_disk_size = 20
+ubuntu_image_url = "https://cloud-images.ubuntu.com/noble/current/noble-server-cloudimg-amd64.img"
+ubuntu_image_file_name = "noble-server-cloudimg-amd64.qcow2"

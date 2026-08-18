@@ -91,7 +91,12 @@
       net.bridge.bridge-nf-call-iptables = 1
       net.bridge.bridge-nf-call-ip6tables = 1
       net.ipv4.ip_forward = 1
-  notify: Reload sysctl settings
+
+- name: Apply Kubernetes networking sysctls immediately
+  ansible.builtin.command:
+    argv:
+      - sysctl
+      - --system
 
 - name: Generate the containerd default configuration
   ansible.builtin.command:
@@ -121,6 +126,9 @@
     regexp: 'SystemdCgroup = false'
     replace: 'SystemdCgroup = true'
   notify: Restart containerd
+
+- name: Apply the containerd configuration before continuing
+  ansible.builtin.meta: flush_handlers
 
 - name: Create the apt keyring directory
   ansible.builtin.file:

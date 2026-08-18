@@ -1,0 +1,27 @@
+# Copy this file to terraform.tfvars and adjust the values before creating a plan.
+
+# Proxmox API connection
+proxmox_endpoint = "https://192.168.100.25:8006/"
+proxmox_insecure = true
+proxmox_node = "hades-node"
+
+# Source VM template created by the ../kubeadm-template environment
+template_vm_id = 9000
+template_node = "hades-node"
+
+# Proxmox storage and networking
+vm_datastore = "local-lvm"
+network_bridge = "vnet1"
+
+# Kubeadm nodes
+# The configuration creates VM IDs 2001-2003 and IPv4 addresses
+# 192.168.10.61-192.168.10.63 from these base values.
+vm_id = 2001
+vm_name = "kubeadm-control-plane"
+vm_tags = ["opentofu", "homelab", "multinode"]
+vm_ipv4_cidr = "192.168.10.61/24"
+gateway_ipv4 = "192.168.10.1"
+on_boot = true
+
+# Public key installed for the ubuntu account on every node
+ssh_public_key_path = "~/.ssh/opentofu_vm_access.pub"

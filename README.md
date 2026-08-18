@@ -1,3 +1,11 @@
+# homeLAB Platform
+
+Infrastructure-as-code experiments for a Proxmox-based home lab.
+
+## Documentation
+
+See [OpenTofu and Proxmox VE Setup](docs/OpenTofuSetup.md) for prerequisites, Proxmox preparation, configuration, deployment, troubleshooting, and cleanup instructions.
+
 # Mock structure
 homeLAB-platform/
 ├── README.md

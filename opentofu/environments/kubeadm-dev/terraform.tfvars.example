@@ -1,0 +1,20 @@
+# Replace every example value before creating a plan.
+
+# Proxmox API connection
+proxmox_endpoint = "https://pve.example.com:8006/"
+proxmox_insecure = false
+proxmox_node     = "pve"
+
+# Proxmox storage and networking
+image_datastore = "local"
+vm_datastore    = "local-lvm"
+network_bridge  = "vmbr0"
+
+# Test VM
+vm_id        = 2001
+vm_name      = "iac-test-01"
+vm_ipv4_cidr = "192.0.2.51/24"
+gateway_ipv4 = "192.0.2.1"
+
+# Public key installed for the VM's ubuntu account
+ssh_public_key_path = "~/.ssh/opentofu_vm_access.pub"

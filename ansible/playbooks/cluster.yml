@@ -87,7 +87,7 @@
           - status
           - deployment/coredns
           - --namespace=kube-system
-          - --timeout=300s
+          - --timeout=600s
       environment:
         KUBECONFIG: /etc/kubernetes/admin.conf
       changed_when: false

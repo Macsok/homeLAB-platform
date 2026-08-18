@@ -17,7 +17,8 @@ output "ansible_inventory" {
   value = yamlencode({
     all = {
       vars = {
-        ansible_user = "ubuntu"
+        ansible_user         = "ubuntu"
+        metallb_address_pool = var.metallb_address_pool
       }
       children = {
         control_plane = {

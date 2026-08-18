@@ -18,9 +18,9 @@ homeLAB-platform/
 ├── ansible/
 │   ├── inventories/            # generated inventory and cluster variables
 │   ├── roles/
-│   │   ├── kubernetes_node/    # OS, containerd, kubelet and kubeadm
-│   │   ├── control_plane/      # kubeadm init and kubeconfig
-│   │   └── calico/             # Pod networking
+│   │   ├── kubernetes_node/       # OS, containerd, kubelet and kubeadm
+│   │   ├── control_plane/         # kubeadm init and kubeconfig
+│   │   └── kubernetes_resources/  # Calico and MetalLB bootstrap resources
 │   └── playbooks/cluster.yml   # cluster orchestration and worker joins
 └── docs/
     ├── OpenTofuMultiNode.md

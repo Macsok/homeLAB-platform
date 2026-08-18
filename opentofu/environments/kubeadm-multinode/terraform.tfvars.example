@@ -23,5 +23,8 @@ vm_ipv4_cidr = "192.168.10.61/24"
 gateway_ipv4 = "192.168.10.1"
 on_boot = true
 
+# This range must be unused and excluded from the DHCP server pool.
+metallb_address_pool = "192.168.10.70-192.168.10.79"
+
 # Public key installed for the ubuntu account on every node
 ssh_public_key_path = "~/.ssh/opentofu_vm_access.pub"

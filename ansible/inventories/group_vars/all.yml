@@ -9,5 +9,11 @@ kubernetes_cri_socket: "unix:///run/containerd/containerd.sock"
 calico_version: "v3.32.1"
 calico_manifest_url: "https://raw.githubusercontent.com/projectcalico/calico/{{ calico_version }}/manifests/calico.yaml"
 
+metallb_version: "v0.16.1"
+metallb_manifest_url: "https://raw.githubusercontent.com/metallb/metallb/{{ metallb_version }}/config/manifests/metallb-native.yaml"
+metallb_pool_name: "homelab"
+
+kubernetes_readiness_timeout: "600s"
+
 kubernetes_admin_user: "{{ ansible_user }}"
 kubernetes_admin_home: "/home/{{ kubernetes_admin_user }}"

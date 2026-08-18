@@ -4,6 +4,7 @@
 all:
   vars:
     ansible_user: ubuntu
+    metallb_address_pool: 192.168.10.70-192.168.10.79
   children:
     control_plane:
       hosts:

@@ -14,7 +14,11 @@
   gather_facts: false
   roles:
     - control_plane
-    - calico
+  tasks:
+    - name: Install the cluster network resources
+      ansible.builtin.include_role:
+        name: kubernetes_resources
+        tasks_from: calico
 
 - name: Find workers that have not joined the cluster
   hosts: workers
@@ -61,7 +65,7 @@
         argv: "{{ hostvars[groups['control_plane'][0]].kubeadm_join_command.stdout.split() + ['--node-name', inventory_hostname, '--cri-socket', kubernetes_cri_socket] }}"
       no_log: true
 
-- name: Verify cluster readiness
+- name: Wait for base cluster readiness
   hosts: control_plane
   become: true
   gather_facts: false
@@ -74,7 +78,7 @@
           - --for=condition=Ready
           - node
           - --all
-          - --timeout=300s
+          - "--timeout={{ kubernetes_readiness_timeout }}"
       environment:
         KUBECONFIG: /etc/kubernetes/admin.conf
       changed_when: false
@@ -87,11 +91,26 @@
           - status
           - deployment/coredns
           - --namespace=kube-system
-          - --timeout=600s
+          - "--timeout={{ kubernetes_readiness_timeout }}"
       environment:
         KUBECONFIG: /etc/kubernetes/admin.conf
       changed_when: false
 
+- name: Install initial Kubernetes resources
+  hosts: control_plane
+  become: true
+  gather_facts: false
+  tasks:
+    - name: Install the service load balancer resources
+      ansible.builtin.include_role:
+        name: kubernetes_resources
+        tasks_from: metallb
+
+- name: Display final cluster status
+  hosts: control_plane
+  become: true
+  gather_facts: false
+  tasks:
     - name: Read the final node status
       ansible.builtin.command:
         argv:
@@ -107,3 +126,19 @@
     - name: Display the final node status
       ansible.builtin.debug:
         var: kubernetes_nodes.stdout_lines
+
+    - name: Read the MetalLB resource status
+      ansible.builtin.command:
+        argv:
+          - kubectl
+          - get
+          - ipaddresspools,l2advertisements
+          - --namespace=metallb-system
+      environment:
+        KUBECONFIG: /etc/kubernetes/admin.conf
+      register: metallb_resources
+      changed_when: false
+
+    - name: Display the MetalLB resource status
+      ansible.builtin.debug:
+        var: metallb_resources.stdout_lines

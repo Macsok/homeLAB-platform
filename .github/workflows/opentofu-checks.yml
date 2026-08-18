@@ -1,0 +1,77 @@
+name: OpenTofu checks
+
+on:
+  pull_request:
+    paths:
+      - "opentofu/**"
+      - ".github/workflows/opentofu-checks.yml"
+  push:
+    branches:
+      - main
+    paths:
+      - "opentofu/**"
+      - ".github/workflows/opentofu-checks.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  format:
+    name: Check formatting
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Install OpenTofu
+        uses: opentofu/setup-opentofu@v2
+        with:
+          tofu_version: 1.12.1
+
+      - name: Check OpenTofu formatting
+        run: tofu fmt -check -recursive -diff opentofu
+
+  validate:
+    name: Validate ${{ matrix.environment }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        environment:
+          - kubeadm-dev
+          - kubeadm-template
+          - kubeadm-multinode
+    defaults:
+      run:
+        working-directory: opentofu/environments/${{ matrix.environment }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Install OpenTofu
+        uses: opentofu/setup-opentofu@v2
+        with:
+          tofu_version: 1.12.1
+
+      - name: Initialize OpenTofu
+        run: tofu init -backend=false -input=false
+
+      - name: Validate OpenTofu configuration
+        run: tofu validate -no-color
+
+  checkov:
+    name: Checkov scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Scan OpenTofu files
+        uses: bridgecrewio/checkov-action@v12.1347.0
+        with:
+          directory: opentofu
+          framework: terraform
+          output_format: cli
+          quiet: true
+          soft_fail: false

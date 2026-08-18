@@ -43,7 +43,7 @@ resource "proxmox_virtual_environment_vm" "test_vm" {
     node_name = var.proxmox_node
 
     description = "VM created by OpenTofu (multinode environment)"
-    tags = ["opentofu", "homelab", "multinode", local.vm_nodes[count.index].role]
+    tags = concat(var.vm_tags, [local.vm_nodes[count.index].role])
 
     on_boot = var.on_boot
     stop_on_destroy = true

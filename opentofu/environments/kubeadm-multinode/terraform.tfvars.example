@@ -18,6 +18,7 @@ network_bridge = "vnet1"
 # 192.168.10.61-192.168.10.63 from these base values.
 vm_id = 2001
 vm_name = "kubeadm-control-plane"
+vm_tags = ["opentofu", "homelab", "multinode"]
 vm_ipv4_cidr = "192.168.10.61/24"
 gateway_ipv4 = "192.168.10.1"
 on_boot = true

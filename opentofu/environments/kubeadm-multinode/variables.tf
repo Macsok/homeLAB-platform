@@ -71,6 +71,16 @@ variable "vm_name" {
     }
 }
 
+variable "vm_tags" {
+    description = "Common Proxmox tags assigned to every virtual machine. The node role is added automatically."
+    type = list(string)
+
+    validation {
+        condition = alltrue([for tag in var.vm_tags : length(trimspace(tag)) > 0])
+        error_message = "vm_tags must not contain empty values."
+    }
+}
+
 variable "on_boot" {
     description = "Specifies whether a VM will be started during system boot."
     type = bool

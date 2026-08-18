@@ -14,7 +14,18 @@
       - cloud-init
       - status
       - --wait
+      - --format=json
+  register: cloud_init_status
   changed_when: false
+  failed_when: cloud_init_status.rc not in [0, 2]
+
+- name: Report recoverable cloud-init errors
+  ansible.builtin.debug:
+    msg:
+      - "cloud-init completed with recoverable errors on {{ inventory_hostname }}."
+      - "Review the status below; provisioning will continue because cloud-init did not crash."
+      - "{{ cloud_init_status.stdout }}"
+  when: cloud_init_status.rc == 2
 
 - name: Set the hostname to the inventory name
   ansible.builtin.hostname:

@@ -1,0 +1,60 @@
+---
+- name: Require exactly one control-plane node
+  ansible.builtin.assert:
+    that:
+      - groups['control_plane'] | length == 1
+    fail_msg: "This playbook currently supports exactly one control-plane node."
+  run_once: true
+
+- name: Initialize the Kubernetes control plane
+  ansible.builtin.command:
+    argv:
+      - kubeadm
+      - init
+      - "--apiserver-advertise-address={{ node_ip }}"
+      - "--node-name={{ inventory_hostname }}"
+      - "--pod-network-cidr={{ kubernetes_pod_network_cidr }}"
+      - "--service-cidr={{ kubernetes_service_cidr }}"
+      - "--cri-socket={{ kubernetes_cri_socket }}"
+    creates: /etc/kubernetes/admin.conf
+
+- name: Create the Kubernetes administrator configuration directory
+  ansible.builtin.file:
+    path: "{{ kubernetes_admin_home }}/.kube"
+    state: directory
+    owner: "{{ kubernetes_admin_user }}"
+    group: "{{ kubernetes_admin_user }}"
+    mode: "0700"
+
+- name: Install kubeconfig for the remote administrator
+  ansible.builtin.copy:
+    src: /etc/kubernetes/admin.conf
+    dest: "{{ kubernetes_admin_home }}/.kube/config"
+    remote_src: true
+    owner: "{{ kubernetes_admin_user }}"
+    group: "{{ kubernetes_admin_user }}"
+    mode: "0600"
+
+- name: Create the local artifacts directory
+  ansible.builtin.file:
+    path: "{{ playbook_dir }}/../artifacts"
+    state: directory
+    mode: "0700"
+  delegate_to: localhost
+  become: false
+  run_once: true
+
+- name: Download the administrator kubeconfig
+  ansible.builtin.fetch:
+    src: /etc/kubernetes/admin.conf
+    dest: "{{ playbook_dir }}/../artifacts/admin.conf"
+    flat: true
+  no_log: true
+
+- name: Protect the downloaded administrator kubeconfig
+  ansible.builtin.file:
+    path: "{{ playbook_dir }}/../artifacts/admin.conf"
+    mode: "0600"
+  delegate_to: localhost
+  become: false
+  run_once: true

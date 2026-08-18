@@ -24,3 +24,5 @@ The configuration clones the specified template and creates three virtual machin
 - two `worker` nodes, each with 2 CPU cores and 2048 MB of RAM.
 
 The machines receive three consecutive VM IDs and IPv4 addresses, starting with the `vm_id` and `vm_ipv4_cidr` values from `terraform.tfvars`. Common tags are defined by `vm_tags`, while the role tag is added automatically.
+
+The environment also exposes an `ansible_inventory` output. After the machines are ready, continue with [Kubernetes with kubeadm and Ansible](KubeadmAnsible.md) to generate the inventory and bootstrap the cluster.

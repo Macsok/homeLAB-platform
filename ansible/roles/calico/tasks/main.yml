@@ -1,0 +1,18 @@
+---
+- name: Download the pinned Calico manifest
+  ansible.builtin.get_url:
+    url: "{{ calico_manifest_url }}"
+    dest: "/etc/kubernetes/calico-{{ calico_version }}.yaml"
+    mode: "0600"
+
+- name: Install or reconcile Calico
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - apply
+      - --filename
+      - "/etc/kubernetes/calico-{{ calico_version }}.yaml"
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+  register: calico_apply
+  changed_when: "'created' in calico_apply.stdout or 'configured' in calico_apply.stdout"

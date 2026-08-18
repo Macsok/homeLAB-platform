@@ -1,0 +1,165 @@
+---
+- name: Validate supported operating system
+  ansible.builtin.assert:
+    that:
+      - ansible_distribution == "Ubuntu"
+      - ansible_distribution_version is version('22.04', '>=')
+      - ansible_architecture == "x86_64"
+      - node_ip is defined
+    fail_msg: "This role expects Ubuntu 22.04+ on x86_64 and a node_ip inventory variable."
+
+- name: Wait for cloud-init to finish
+  ansible.builtin.command:
+    argv:
+      - cloud-init
+      - status
+      - --wait
+  changed_when: false
+
+- name: Set the hostname to the inventory name
+  ansible.builtin.hostname:
+    name: "{{ inventory_hostname }}"
+
+- name: Keep the local hostname resolvable
+  ansible.builtin.lineinfile:
+    path: /etc/hosts
+    regexp: '^127\.0\.1\.1\s+'
+    line: "127.0.1.1 {{ inventory_hostname }}"
+    create: true
+    mode: "0644"
+
+- name: Install operating system prerequisites and containerd
+  ansible.builtin.apt:
+    name:
+      - apt-transport-https
+      - ca-certificates
+      - curl
+      - gpg
+      - containerd
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: Disable swap immediately
+  ansible.builtin.command:
+    argv:
+      - swapoff
+      - --all
+  when: ansible_swaptotal_mb | int > 0
+  changed_when: true
+
+- name: Disable swap persistently in fstab
+  ansible.builtin.replace:
+    path: /etc/fstab
+    regexp: '^(\s*)([^#\n]+\s+\S+\s+swap\s+.*)$'
+    replace: '# \2'
+
+- name: Configure kernel modules required by Kubernetes
+  ansible.builtin.copy:
+    dest: /etc/modules-load.d/kubernetes.conf
+    mode: "0644"
+    content: |
+      overlay
+      br_netfilter
+
+- name: Load kernel modules required by Kubernetes
+  ansible.builtin.command:
+    argv:
+      - modprobe
+      - "{{ item }}"
+  loop:
+    - overlay
+    - br_netfilter
+  changed_when: false
+
+- name: Configure Kubernetes networking sysctls
+  ansible.builtin.copy:
+    dest: /etc/sysctl.d/99-kubernetes-cri.conf
+    mode: "0644"
+    content: |
+      net.bridge.bridge-nf-call-iptables = 1
+      net.bridge.bridge-nf-call-ip6tables = 1
+      net.ipv4.ip_forward = 1
+  notify: Reload sysctl settings
+
+- name: Generate the containerd default configuration
+  ansible.builtin.command:
+    argv:
+      - containerd
+      - config
+      - default
+  register: containerd_default_configuration
+  changed_when: false
+
+- name: Install the containerd configuration
+  ansible.builtin.copy:
+    dest: /etc/containerd/config.toml
+    mode: "0644"
+    content: "{{ containerd_default_configuration.stdout }}\n"
+  notify: Restart containerd
+
+- name: Use systemd cgroups in containerd
+  ansible.builtin.replace:
+    path: /etc/containerd/config.toml
+    regexp: 'SystemdCgroup = false'
+    replace: 'SystemdCgroup = true'
+  notify: Restart containerd
+
+- name: Create the apt keyring directory
+  ansible.builtin.file:
+    path: /etc/apt/keyrings
+    state: directory
+    mode: "0755"
+
+- name: Install the Kubernetes repository signing key
+  ansible.builtin.get_url:
+    url: "https://pkgs.k8s.io/core:/stable:/{{ kubernetes_minor_version }}/deb/Release.key"
+    dest: /etc/apt/keyrings/kubernetes-apt-keyring.asc
+    mode: "0644"
+    force: true
+
+- name: Configure the Kubernetes package repository
+  ansible.builtin.copy:
+    dest: /etc/apt/sources.list.d/kubernetes.list
+    mode: "0644"
+    content: |
+      deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.asc] https://pkgs.k8s.io/core:/stable:/{{ kubernetes_minor_version }}/deb/ /
+
+- name: Install kubelet, kubeadm, and kubectl
+  ansible.builtin.apt:
+    name:
+      - kubelet
+      - kubeadm
+      - kubectl
+    state: present
+    update_cache: true
+
+- name: Hold Kubernetes packages at the installed version
+  ansible.builtin.dpkg_selections:
+    name: "{{ item }}"
+    selection: hold
+  loop:
+    - kubelet
+    - kubeadm
+    - kubectl
+
+- name: Configure the kubelet node address
+  ansible.builtin.copy:
+    dest: /etc/default/kubelet
+    mode: "0644"
+    content: |
+      KUBELET_EXTRA_ARGS=--node-ip={{ node_ip }}
+  notify: Restart kubelet
+
+- name: Enable containerd and kubelet
+  ansible.builtin.systemd_service:
+    name: "{{ item }}"
+    enabled: true
+    state: started
+    daemon_reload: true
+  loop:
+    - containerd
+    - kubelet
+
+- name: Apply node configuration handlers before kubeadm
+  ansible.builtin.meta: flush_handlers

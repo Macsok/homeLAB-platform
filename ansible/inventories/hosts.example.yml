@@ -4,6 +4,8 @@
 all:
   vars:
     ansible_user: ubuntu
+    # Set to true (or pass -e metallb_enabled=true) to install MetalLB.
+    metallb_enabled: false
     metallb_address_pool: 192.168.10.70-192.168.10.79
   children:
     control_plane:

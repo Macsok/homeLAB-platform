@@ -1,0 +1,85 @@
+---
+- name: Validate the MetalLB address pool
+  ansible.builtin.assert:
+    that:
+      - metallb_address_pool is defined
+      - metallb_address_pool | length > 0
+      - "'-' in metallb_address_pool"
+    fail_msg: "Set metallb_address_pool to an unused range excluded from DHCP, for example 192.168.10.70-192.168.10.79."
+
+- name: Download the pinned MetalLB native manifest
+  ansible.builtin.get_url:
+    url: "{{ metallb_manifest_url }}"
+    dest: "/etc/kubernetes/metallb-{{ metallb_version }}.yaml"
+    mode: "0600"
+
+- name: Install or reconcile MetalLB components
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - apply
+      - --filename
+      - "/etc/kubernetes/metallb-{{ metallb_version }}.yaml"
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+  register: metallb_apply
+  changed_when: "'created' in metallb_apply.stdout or 'configured' in metallb_apply.stdout"
+
+- name: Wait for MetalLB custom resource definitions
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - wait
+      - --for=condition=Established
+      - "customresourcedefinition/{{ item }}"
+      - "--timeout={{ kubernetes_readiness_timeout }}"
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+  loop:
+    - ipaddresspools.metallb.io
+    - l2advertisements.metallb.io
+  changed_when: false
+
+- name: Wait for the MetalLB controller
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - rollout
+      - status
+      - deployment/controller
+      - --namespace=metallb-system
+      - "--timeout={{ kubernetes_readiness_timeout }}"
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+  changed_when: false
+
+- name: Render the MetalLB Layer 2 configuration
+  ansible.builtin.template:
+    src: metallb-config.yml.j2
+    dest: /etc/kubernetes/metallb-config.yml
+    mode: "0600"
+
+- name: Configure the MetalLB address pool and Layer 2 advertisement
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - apply
+      - --filename
+      - /etc/kubernetes/metallb-config.yml
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+  register: metallb_configuration_apply
+  changed_when: "'created' in metallb_configuration_apply.stdout or 'configured' in metallb_configuration_apply.stdout"
+
+- name: Wait for MetalLB speakers on all nodes
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - rollout
+      - status
+      - daemonset/speaker
+      - --namespace=metallb-system
+      - "--timeout={{ kubernetes_readiness_timeout }}"
+  environment:
+    KUBECONFIG: /etc/kubernetes/admin.conf
+  changed_when: false

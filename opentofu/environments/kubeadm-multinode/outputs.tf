@@ -11,3 +11,33 @@ output "virtual_machines" {
     }
   ]
 }
+
+output "ansible_inventory" {
+  description = "Ansible YAML inventory for bootstrapping the kubeadm cluster."
+  value = yamlencode({
+    all = {
+      vars = {
+        ansible_user         = "ubuntu"
+        metallb_address_pool = var.metallb_address_pool
+      }
+      children = {
+        control_plane = {
+          hosts = {
+            for index, node in local.vm_nodes : node.name => {
+              ansible_host = cidrhost(var.vm_ipv4_cidr, local.vm_ipv4_host_number + index)
+              node_ip      = cidrhost(var.vm_ipv4_cidr, local.vm_ipv4_host_number + index)
+            } if node.role == "control-plane"
+          }
+        }
+        workers = {
+          hosts = {
+            for index, node in local.vm_nodes : node.name => {
+              ansible_host = cidrhost(var.vm_ipv4_cidr, local.vm_ipv4_host_number + index)
+              node_ip      = cidrhost(var.vm_ipv4_cidr, local.vm_ipv4_host_number + index)
+            } if node.role == "worker"
+          }
+        }
+      }
+    }
+  })
+}

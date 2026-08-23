@@ -6,6 +6,11 @@ Infrastructure-as-code experiments for a Proxmox-based home lab.
 
 See [OpenTofu and Proxmox VE Setup](docs/OpenTofuSetup.md) for prerequisites, Proxmox preparation, configuration, deployment, troubleshooting, and cleanup instructions.
 
+For the three-node Kubernetes environment, see [OpenTofu Multi-Node](docs/OpenTofuMultiNode.md) followed by [Kubernetes with kubeadm and Ansible](docs/KubeadmAnsible.md).
+
+## Kubernetes automation structure
+
+```text
 ## AI-assisted pull request feedback
 
 Authorized repository collaborators can comment on a pull request with:
@@ -21,66 +26,21 @@ but cannot edit files, create commits, push, approve, or merge. Shared agent
 behavior is defined in [AGENTS.md](AGENTS.md); Claude Code loads it through
 [CLAUDE.md](CLAUDE.md).
 
-# Mock structure
+## Kubernetes automation structure
+
+```text
 homeLAB-platform/
-├── README.md
-├── Taskfile.yaml
-├── Makefile
-├── .editorconfig
-├── .gitignore
-├── .pre-commit-config.yaml
-│
-├── docs/
-│   ├── architecture.md
-│   ├── networking.md
-│   ├── disaster-recovery.md
-│   └── adr/
-│
-├── opentofu/
-│   ├── modules/
-│   │   ├── proxmox-vm/
-│   │   ├── ubuntu-node/
-│   │   └── talos-node/
-│   │
-│   └── environments/
-│       ├── shared/
-│       ├── kubeadm-dev/
-│       ├── kubeadm-prod/
-│       └── talos-dev/
-│
+├── opentofu/environments/
+│   ├── kubeadm-template/       # Ubuntu 24.04 Proxmox template
+│   └── kubeadm-multinode/      # control-plane and worker VMs
 ├── ansible/
-│   ├── inventories/
-│   ├── group_vars/
+│   ├── inventories/            # generated inventory and cluster variables
 │   ├── roles/
-│   │   ├── common/
-│   │   ├── users/
-│   │   ├── ssh-hardening/
-│   │   └── node-preparation/
-│   └── playbooks/
-│       ├── prepare-nodes.yml
-│       └── validate-nodes.yml
-│
-├── kubespray/
-│   ├── inventory/
-│   └── patches/
-│
-├── talos/
-│   ├── patches/
-│   ├── schemas/
-│   └── scripts/
-│
-├── packer/
-│   └── ubuntu/
-│
-├── scripts/
-│   ├── generate-ansible-inventory.py
-│   ├── bootstrap-kubeadm.sh
-│   ├── bootstrap-talos.sh
-│   └── validate-cluster.sh
-│
-└── .github/
-    └── workflows/
-        ├── opentofu.yml
-        ├── ansible.yml
-        ├── talos.yml
-        └── security.yml
+│   │   ├── kubernetes_node/       # OS, containerd, kubelet and kubeadm
+│   │   ├── control_plane/         # kubeadm init and kubeconfig
+│   │   └── kubernetes_resources/  # Calico and MetalLB bootstrap resources
+│   └── playbooks/cluster.yml   # cluster orchestration and worker joins
+└── docs/
+    ├── OpenTofuMultiNode.md
+    └── KubeadmAnsible.md
+```

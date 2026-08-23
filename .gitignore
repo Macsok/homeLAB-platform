@@ -10,3 +10,8 @@ terraform.tfvars
 
 crash.log
 crash.*.log
+
+# Generated Ansible data and local Python environment
+ansible/inventories/hosts.yml
+ansible/artifacts/
+.venv/

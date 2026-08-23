@@ -1,0 +1,23 @@
+---
+# Generated automatically by:
+# tofu -chdir=opentofu/environments/kubeadm-multinode output -raw ansible_inventory
+all:
+  vars:
+    ansible_user: ubuntu
+    # Set to true (or pass -e metallb_enabled=true) to install MetalLB.
+    metallb_enabled: false
+    metallb_address_pool: 192.168.10.70-192.168.10.79
+  children:
+    control_plane:
+      hosts:
+        kubeadm-control-plane:
+          ansible_host: 192.168.10.61
+          node_ip: 192.168.10.61
+    workers:
+      hosts:
+        kubeadm-control-plane-worker-1:
+          ansible_host: 192.168.10.62
+          node_ip: 192.168.10.62
+        kubeadm-control-plane-worker-2:
+          ansible_host: 192.168.10.63
+          node_ip: 192.168.10.63

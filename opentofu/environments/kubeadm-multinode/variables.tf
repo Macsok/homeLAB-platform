@@ -116,6 +116,23 @@ variable "gateway_ipv4" {
   }
 }
 
+variable "metallb_address_pool" {
+  description = "Unused IPv4 range reserved outside DHCP for MetalLB services, expressed as START-END."
+  type        = string
+  default     = "192.168.10.70-192.168.10.79"
+
+  validation {
+    condition = (
+      length(split("-", var.metallb_address_pool)) == 2 &&
+      alltrue([
+        for address in split("-", var.metallb_address_pool) :
+        can(cidrhost("${trimspace(address)}/32", 0)) && length(split(".", trimspace(address))) == 4
+      ])
+    )
+    error_message = "metallb_address_pool must contain two IPv4 addresses, for example 192.168.10.70-192.168.10.79."
+  }
+}
+
 variable "ssh_public_key_path" {
   description = "Path to the SSH public key added to the ubuntu user account."
   type        = string

@@ -1,0 +1,147 @@
+---
+- name: Prepare every Kubernetes node
+  hosts:
+    - control_plane
+    - workers
+  become: true
+  gather_facts: true
+  roles:
+    - kubernetes_node
+
+- name: Initialize the control plane
+  hosts: control_plane
+  become: true
+  gather_facts: false
+  roles:
+    - control_plane
+  tasks:
+    - name: Install the cluster network resources
+      ansible.builtin.include_role:
+        name: kubernetes_resources
+        tasks_from: calico
+
+- name: Find workers that have not joined the cluster
+  hosts: workers
+  become: true
+  gather_facts: false
+  tasks:
+    - name: Check whether the worker is already joined
+      ansible.builtin.stat:
+        path: /etc/kubernetes/kubelet.conf
+      register: worker_kubelet_configuration
+
+    - name: Create a temporary group for workers that need to join
+      ansible.builtin.group_by:
+        key: workers_to_join
+      when: not worker_kubelet_configuration.stat.exists
+      changed_when: false
+
+- name: Create a short-lived worker join command
+  hosts: control_plane
+  become: true
+  gather_facts: false
+  tasks:
+    - name: Generate the kubeadm join command only when needed
+      ansible.builtin.command:
+        argv:
+          - kubeadm
+          - token
+          - create
+          - --ttl
+          - 30m
+          - --print-join-command
+      register: kubeadm_join_command
+      changed_when: true
+      no_log: true
+      when: groups.get('workers_to_join', []) | length > 0
+
+- name: Join new workers to the cluster
+  hosts: workers_to_join
+  become: true
+  gather_facts: false
+  tasks:
+    - name: Join the worker with kubeadm
+      ansible.builtin.command:
+        argv: "{{ hostvars[groups['control_plane'][0]].kubeadm_join_command.stdout.split() + ['--node-name', inventory_hostname, '--cri-socket', kubernetes_cri_socket] }}"
+      no_log: true
+
+- name: Wait for base cluster readiness
+  hosts: control_plane
+  become: true
+  gather_facts: false
+  tasks:
+    - name: Wait for every registered node to become Ready
+      ansible.builtin.command:
+        argv:
+          - kubectl
+          - wait
+          - --for=condition=Ready
+          - node
+          - --all
+          - "--timeout={{ kubernetes_readiness_timeout }}"
+      environment:
+        KUBECONFIG: /etc/kubernetes/admin.conf
+      changed_when: false
+
+    - name: Wait for CoreDNS to become available
+      ansible.builtin.command:
+        argv:
+          - kubectl
+          - rollout
+          - status
+          - deployment/coredns
+          - --namespace=kube-system
+          - "--timeout={{ kubernetes_readiness_timeout }}"
+      environment:
+        KUBECONFIG: /etc/kubernetes/admin.conf
+      changed_when: false
+
+- name: Install initial Kubernetes resources
+  hosts: control_plane
+  become: true
+  gather_facts: false
+  tasks:
+    - name: Install the service load balancer resources
+      ansible.builtin.include_role:
+        name: kubernetes_resources
+        tasks_from: metallb
+      when: metallb_enabled | bool
+
+- name: Display final cluster status
+  hosts: control_plane
+  become: true
+  gather_facts: false
+  tasks:
+    - name: Read the final node status
+      ansible.builtin.command:
+        argv:
+          - kubectl
+          - get
+          - nodes
+          - --output=wide
+      environment:
+        KUBECONFIG: /etc/kubernetes/admin.conf
+      register: kubernetes_nodes
+      changed_when: false
+
+    - name: Display the final node status
+      ansible.builtin.debug:
+        var: kubernetes_nodes.stdout_lines
+
+    - name: Read the MetalLB resource status
+      ansible.builtin.command:
+        argv:
+          - kubectl
+          - get
+          - ipaddresspools,l2advertisements
+          - --namespace=metallb-system
+      environment:
+        KUBECONFIG: /etc/kubernetes/admin.conf
+      register: metallb_resources
+      changed_when: false
+      when: metallb_enabled | bool
+
+    - name: Display the MetalLB resource status
+      ansible.builtin.debug:
+        var: metallb_resources.stdout_lines
+      when: metallb_enabled | bool

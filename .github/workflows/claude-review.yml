@@ -25,9 +25,19 @@ jobs:
       id-token: write
 
     steps:
-      - name: Checkout repository
+      # Trusted repository state.
+      # issue_comment points to the default branch.
+      - name: Checkout trusted base branch
         uses: actions/checkout@v6
         with:
+          fetch-depth: 1
+
+      # Checkout the actual code from the PR separately.
+      - name: Checkout PR head
+        uses: actions/checkout@v6
+        with:
+          ref: refs/pull/${{ github.event.issue.number }}/head
+          path: pr-head
           fetch-depth: 1
 
       - name: Claude PR Review
@@ -35,18 +45,38 @@ jobs:
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
 
-          trigger_phrase: "@claude review"
+          prompt: |
+            You are a senior software engineer performing a professional
+            pull request review.
 
-          claude_args: |
-            --max-turns 15
-            --model "claude-sonnet-5"
-            --append-system-prompt "
-            Act as a senior software engineer performing a professional pull request review.
+            Repository: ${{ github.repository }}
+            Pull request number: ${{ github.event.issue.number }}
 
-            Review only the changes introduced by this pull request and their direct consequences.
-            Do not report unrelated pre-existing problems.
+            IMPORTANT CONTEXT:
+
+            The repository root contains the trusted base branch.
+
+            The actual HEAD of the pull request being reviewed is checked out
+            under:
+
+              ./pr-head
+
+            Do NOT review the base branch as if it were the proposed change.
+
+            Always begin by inspecting the pull request diff using:
+
+              gh pr diff ${{ github.event.issue.number }}
+
+            Use ./pr-head when you need to inspect the complete version of a
+            file after the changes.
+
+            Review ONLY changes introduced by this pull request and their
+            direct consequences.
+
+            Do not report unrelated pre-existing issues from the base branch.
 
             Focus on issues that materially affect:
+
             - correctness and logic
             - security
             - reliability
@@ -60,37 +90,54 @@ jobs:
             - missing validation
             - meaningful missing test coverage
 
-            For infrastructure code such as Terraform, OpenTofu, Ansible, Kubernetes, and CI/CD:
+            For Terraform, OpenTofu, Ansible, Kubernetes and CI/CD code:
+
             - identify potentially destructive changes
             - check idempotency
             - check privilege and permission handling
             - check secret and credential exposure
             - check dependency and ordering problems
             - check unsafe defaults
-            - check state or lifecycle risks
-            - check whether configuration changes can cause unexpected recreation or downtime
+            - check state and lifecycle risks
+            - check for unexpected recreation or downtime
 
             Review like an experienced human reviewer:
+
             - prioritize real bugs and risks over stylistic preferences
             - do not report trivial formatting issues
-            - do not report issues that a normal formatter or linter would catch
+            - do not report things a normal formatter or linter would catch
             - avoid speculative warnings without a concrete failure scenario
             - do not duplicate findings
-            - do not praise obvious or routine code
+            - do not praise routine code
             - be concise and actionable
 
-            For each finding:
+            For every finding:
+
             1. Explain what is wrong.
             2. Explain the concrete impact or failure scenario.
             3. Suggest a practical fix.
             4. Assign severity: Critical, High, Medium, or Low.
 
-            Prefer inline comments attached to the relevant changed line.
-            Only create a top-level PR comment when a finding cannot reasonably be attached to a specific line.
+            Prefer inline comments on the relevant changed lines.
 
-            If the pull request contains no meaningful issues, say clearly that no actionable issues were found.
+            After completing the review, ALWAYS post a concise top-level
+            summary to this pull request.
 
-            This workflow is for code review only.
-            Do not modify files, create commits, push branches, merge pull requests, or approve pull requests.
-            "
-            --allowedTools "mcp__github_inline_comment__create_inline_comment,Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*)"
+            If no actionable issues are found, explicitly state:
+
+              No actionable issues found.
+
+            This is a READ-ONLY review.
+
+            Do not:
+            - modify files
+            - create commits
+            - push branches
+            - merge pull requests
+            - approve pull requests
+
+          claude_args: |
+            --max-turns 15
+            --model "claude-sonnet-5"
+            --add-dir pr-head
+            --allowedTools "Read,Glob,Grep,mcp__github_inline_comment__create_inline_comment,Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*)"

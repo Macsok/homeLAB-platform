@@ -8,7 +8,20 @@ See [OpenTofu and Proxmox VE Setup](docs/OpenTofuSetup.md) for prerequisites, Pr
 
 ## AI-assisted pull request feedback
 
-Authorized repository collaborators can comment on a pull request with:
+Authorized collaborators can request feedback in a pull request comment:
+
+- `@claude review` reports actionable findings.
+- `@claude suggest` proposes exact changes and a commit plan.
+
+Text after the trigger narrows the scope, for example:
+`@claude suggest focus on OpenTofu lifecycle safety`.
+
+The bot posts a status comment immediately and updates it after success or
+failure. Both modes are read-only: they cannot edit files, commit, push,
+approve, or merge. Repository instructions live in [AGENTS.md](AGENTS.md),
+which Claude Code imports through [CLAUDE.md](CLAUDE.md).
+
+## Kubernetes automation structure
 
 - `@claude review` to request actionable review findings.
 - `@claude suggest` to request exact code suggestions and a proposed commit plan.
